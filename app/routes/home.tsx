@@ -75,8 +75,12 @@ export default function Home() {
           <div className="flex flex-col gap-4">
             {route ? (
               <>
-                <PitMap route={route} />
-                <RouteList route={route} onRouteChange={setRoute} />
+                <div className="order-2 lg:order-1">
+                  <PitMap route={route} />
+                </div>
+                <div className="order-1 lg:order-2">
+                  <RouteList route={route} onRouteChange={setRoute} />
+                </div>
               </>
             ) : (
               <Instructions />

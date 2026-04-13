@@ -119,8 +119,13 @@ while (i < rows.length) {
         const letter = label[0];
         const rowNum = parseInt(label.slice(1), 10);
         const baseX = COL_LETTER_TO_X[letter];
-        // Odd pits are on the west/left side of the aisle, even on east/right
-        const xOffset = rowNum % 2 !== 0 ? -(VERTICAL_AISLE_WIDTH / 2) : (VERTICAL_AISLE_WIDTH / 2);
+        // Odd pits are on the west/left side of the aisle, even on east/right.
+        // Each pit is PIT_SIZE deep, so the center is PIT_SIZE/2 past the aisle
+        // edge. The aisle edge is at VERTICAL_AISLE_WIDTH/2 from the aisle center.
+        // Total offset = VERTICAL_AISLE_WIDTH/2 + PIT_SIZE/2.
+        const xOffset = rowNum % 2 !== 0
+          ? -(VERTICAL_AISLE_WIDTH / 2 + PIT_SIZE / 2)
+          : (VERTICAL_AISLE_WIDTH / 2 + PIT_SIZE / 2);
 
         teamToPit[team] = label;
         pitToCoords[label] = {
@@ -150,7 +155,7 @@ const output = `// Auto-generated from "2025 CMPTX Pit Map by Che(pit map).csv"
 // Run scripts/parse-pit-data.ts to regenerate
 
 export interface PitCoords {
-  /** X position in feet from aisle A center. Hall A: A=0..H=210, Hall E: J=710..R=920 */
+  /** X position in feet. Pit centers: Hall A odd=-10..H-even=220 (aisle centers 0,30,…,210), Hall E J-odd=700..R-even=930 */
   x: number;
   /** Y position in feet. Each pit pair occupies PIT_SIZE feet; horizontal aisles add 15' at rows 14 and 45 */
   y: number;

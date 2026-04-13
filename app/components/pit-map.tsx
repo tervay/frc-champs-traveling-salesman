@@ -6,29 +6,32 @@ import type { RouteStop } from "~/lib/solver";
 // ── SVG coordinate constants ──────────────────────────────────────────────────
 //
 // Physical layout (feet, from pit-data.ts):
-//   Hall A: x ∈ [-5, 215]  (A odd left-edge = -10, H even right-edge = 220)
-//   Hall E: x ∈ [705, 925] (J odd left-edge = 700, R even right-edge = 930)
+//   Hall A: x ∈ [-10, 220] (A-odd center=-10, H-even center=220)
+//   Hall E: x ∈ [700, 930] (J-odd center=700, R-even center=930)
 //   y      ∈ [25, 260]     (top pit pair y=25, bottom pair y=260)
 //
+// Each column: odd pit center at baseX-10, even at baseX+10 (20 ft aisle gap).
+// Adjacent columns share a 10 ft back-to-back gap (e.g. A-even x=10, B-odd x=20).
+//
 // SVG mapping (1 ft = 1 SVG unit):
-//   Hall A → x ∈ [PAD_X, PAD_X + 230]   (shift +10 so A odd left-edge → 0)
-//   Hall E → x ∈ [PAD_X + 230 + GAP, …]
-//   y      → PAD_TOP + (y - 20)           (min y=25 → top-edge at PAD_TOP)
+//   Hall A → shift +10, PAD_X=9 keeps A-odd (x=-10) at svgX=9
+//   Hall E → (x-700) + HALL_A_W + HALL_GAP
+//   y      → PAD_TOP + (y - 20)
 //
 // The container uses minWidth so the SVG renders at natural scale on small
 // screens (scrollable) and scales up to fill wide screens automatically.
 
-const PAD_X = 4;
+const PAD_X = 9;
 const PAD_TOP = 15; // room for hall / aisle labels above pits
 const PAD_BOT = 4;
-const HALL_A_W = 230; // width of Hall A in SVG units (= 230 physical feet)
+const HALL_A_W = 235; // width of Hall A in SVG units (A-odd at 9, H-even at 239)
 const HALL_GAP = 32; // compressed visual gap between halls
 
-const SVG_W = PAD_X * 2 + HALL_A_W + HALL_GAP + HALL_A_W; // 498
+const SVG_W = PAD_X * 2 + HALL_A_W + HALL_GAP + HALL_A_W; // 520
 const SVG_H = PAD_TOP + PAD_BOT + 245; // 263
 
-const HALL_GAP_X = PAD_X + HALL_A_W; // x where gap begins  (234)
-const HALL_E_X = HALL_GAP_X + HALL_GAP; // x where Hall E starts (266)
+const HALL_GAP_X = PAD_X + HALL_A_W; // x where gap begins  (244)
+const HALL_E_X = HALL_GAP_X + HALL_GAP; // x where Hall E starts (276)
 
 function toSvgX(coords: PitCoords): number {
   if (coords.letter <= "H") {
@@ -131,7 +134,12 @@ export function PitMap({ route }: PitMapProps) {
   const tipY = active ? Math.max(active.svgY - TIP_H - 5, PAD_TOP) : 0;
 
   return (
-    <div className="overflow-auto rounded-lg border bg-card">
+    <div className="flex flex-col gap-2">
+      <p className="rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+        <strong>Note:</strong> Pit assignments are not guaranteed to be correct.
+        Always verify with the official event pit map.
+      </p>
+      <div className="overflow-auto rounded-lg border bg-card">
       {/* minWidth keeps natural 1:1 scale on small screens (scrollable).
           width:100% lets it expand to fill larger containers automatically. */}
       <div style={{ minWidth: SVG_W }}>
@@ -299,6 +307,7 @@ export function PitMap({ route }: PitMapProps) {
           )}
         </svg>
       </div>
+    </div>
     </div>
   );
 }
