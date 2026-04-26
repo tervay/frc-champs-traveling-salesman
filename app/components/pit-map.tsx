@@ -41,7 +41,8 @@ function toSvgX(coords: PitCoords): number {
 }
 
 function toSvgY(coords: PitCoords): number {
-  return PAD_TOP + coords.y - 20;
+  // Flip Y so row 52 (y=260) appears at the top, matching the official pit map orientation.
+  return PAD_TOP + (260 - coords.y);
 }
 
 const HALL_A_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -68,21 +69,11 @@ const C = {
   activePit: "#ea580c",
   routeLine: "#2563eb",
   stepText: "#ffffff",
-  tipBg: "#ffffff",
-  tipBorder: "#d1d5db",
-  tipTitle: "#111827",
-  tipSub: "#6b7280",
 };
-
-// ── Tooltip constants ─────────────────────────────────────────────────────────
-const TIP_W = 54;
-const TIP_H = 16;
 
 interface ActiveStop {
   stop: RouteStop;
   step: number;
-  svgX: number;
-  svgY: number;
 }
 
 interface PitMapProps {
@@ -109,7 +100,7 @@ export function PitMap({ route }: PitMapProps) {
 
   function handleRouteClick(
     pit: string,
-    coords: PitCoords,
+    _coords: PitCoords,
     e: React.MouseEvent
   ) {
     e.stopPropagation();
@@ -118,20 +109,9 @@ export function PitMap({ route }: PitMapProps) {
     setActive((prev) =>
       prev?.stop.pit === pit
         ? null
-        : {
-            stop: entry.stop,
-            step: entry.step,
-            svgX: toSvgX(coords),
-            svgY: toSvgY(coords),
-          }
+        : { stop: entry.stop, step: entry.step }
     );
   }
-
-  // Clamp tooltip so it stays inside SVG bounds
-  const tipX = active
-    ? Math.min(active.svgX + 7, SVG_W - TIP_W - 2)
-    : 0;
-  const tipY = active ? Math.max(active.svgY - TIP_H - 5, PAD_TOP) : 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -148,6 +128,7 @@ export function PitMap({ route }: PitMapProps) {
           style={{ width: "100%", height: "auto", display: "block" }}
           aria-label="Pit map with planned route"
           onClick={() => setActive(null)}
+          role="img"
         >
           {/* ── Hall gap shaded region ── */}
           <rect
@@ -254,6 +235,14 @@ export function PitMap({ route }: PitMapProps) {
                   Stop {i + 1} · Team {stop.team} · Pit {stop.pit}
                   {isHome ? " · Your pit" : ""}
                 </title>
+                {/* Invisible larger hit area for easier touch targeting */}
+                <rect
+                  x={cx - 9}
+                  y={cy - 9}
+                  width={18}
+                  height={18}
+                  fill="transparent"
+                />
                 <rect
                   x={cx - 4.5}
                   y={cy - 4.5}
@@ -261,6 +250,8 @@ export function PitMap({ route }: PitMapProps) {
                   height={9}
                   rx={1}
                   fill={isActive ? C.activePit : isHome ? C.myTeamPit : C.routePit}
+                  stroke={isActive ? "#fff" : "none"}
+                  strokeWidth={0.75}
                 />
                 <text
                   x={cx}
@@ -277,35 +268,29 @@ export function PitMap({ route }: PitMapProps) {
               </g>
             );
           })}
-
-          {/* ── Tap/click tooltip ── */}
-          {active && (
-            <g style={{ pointerEvents: "none" }}>
-              <rect
-                x={tipX}
-                y={tipY}
-                width={TIP_W}
-                height={TIP_H}
-                rx={2}
-                fill={C.tipBg}
-                stroke={C.tipBorder}
-                strokeWidth={0.75}
-              />
-              <text
-                x={tipX + 3}
-                y={tipY + 6}
-                fontSize={4}
-                fontWeight="700"
-                fill={C.tipTitle}
-              >
-                Team {active.stop.team}
-              </text>
-              <text x={tipX + 3} y={tipY + 12} fontSize={3.5} fill={C.tipSub}>
-                Pit {active.stop.pit} · Stop {active.step}
-              </text>
-            </g>
-          )}
         </svg>
+      </div>
+
+      {/* ── Active stop info strip (replaces SVG tooltip for mobile readability) ── */}
+      <div
+        className="border-t px-3 py-2 text-sm"
+        style={{ minWidth: SVG_W }}
+      >
+        {active ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold">
+              Stop {active.step} &mdash; Team {active.stop.team}
+            </span>
+            <span className="text-muted-foreground">
+              Pit {active.stop.pit}
+              {active.stop.pit === myTeamPit ? " · Your pit" : ""}
+            </span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Tap a highlighted pit to see stop details.
+          </p>
+        )}
       </div>
     </div>
     </div>

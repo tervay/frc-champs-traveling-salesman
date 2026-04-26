@@ -82,20 +82,25 @@ interface PitCoords {
 const teamToPit: Record<number, string> = {};
 const pitToCoords: Record<string, PitCoords> = {};
 
-const csvPath = path.join(
-  process.cwd(),
-  "2025 CMPTX Pit Map by Che(pit map).csv"
-);
+const CSV_FILE = "2026 CMPTX Pit Map(pit map).csv";
+const csvPath = path.join(process.cwd(), CSV_FILE);
 const content = fs.readFileSync(csvPath, "utf-8");
 const rows = parseCSV(content);
 
-// CSV rows (0-indexed) where horizontal aisles occur — adds HORIZONTAL_AISLE_WIDTH to Y
-const HORIZONTAL_AISLE_CSV_ROWS = new Set([13, 44]); // CSV rows 14 and 45
+// Section divider rows (e.g. "ARCHIMEDES / DALY / CURIE / GALILEO") mark horizontal aisles.
+// Detected automatically: a row with no pit labels and no team numbers but with known section names.
+const SECTION_NAMES = new Set([
+  "ARCHIMEDES", "DALY", "HOPPER", "MILSTEIN",
+  "CURIE", "GALILEO", "JOHNSON", "NEWTON",
+]);
+function isSectionDivider(row: string[]): boolean {
+  return !row.some(isPitLabel) && row.some((c) => SECTION_NAMES.has(c.trim().toUpperCase()));
+}
 
 let i = 0;
 let yOffset = 0;
 while (i < rows.length) {
-  if (HORIZONTAL_AISLE_CSV_ROWS.has(i)) {
+  if (isSectionDivider(rows[i])) {
     yOffset += HORIZONTAL_AISLE_WIDTH;
   }
 
@@ -151,13 +156,13 @@ const sortedTeams = Object.keys(teamToPit)
   .sort((a, b) => a - b);
 const sortedPits = Object.keys(pitToCoords).sort();
 
-const output = `// Auto-generated from "2025 CMPTX Pit Map by Che(pit map).csv"
+const output = `// Auto-generated from "${CSV_FILE}"
 // Run scripts/parse-pit-data.ts to regenerate
 
 export interface PitCoords {
   /** X position in feet. Pit centers: Hall A odd=-10..H-even=220 (aisle centers 0,30,…,210), Hall E J-odd=700..R-even=930 */
   x: number;
-  /** Y position in feet. Each pit pair occupies PIT_SIZE feet; horizontal aisles add 15' at rows 14 and 45 */
+  /** Y position in feet. Each pit pair occupies PIT_SIZE feet; horizontal aisles add 15' each */
   y: number;
   /** Aisle letter (A-H, J-R) */
   letter: string;
