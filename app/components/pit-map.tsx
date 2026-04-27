@@ -5,18 +5,17 @@ import type { RouteStop } from "~/lib/solver";
 
 // ── SVG coordinate constants ──────────────────────────────────────────────────
 //
-// Physical layout (feet, from pit-data.ts):
-//   Hall A: x ∈ [-10, 220] (A-odd center=-10, H-even center=220)
-//   Hall E: x ∈ [700, 930] (J-odd center=700, R-even center=930)
-//   y      ∈ [25, 260]     (top pit pair y=25, bottom pair y=260)
+// Nexus coordinate system (pit centers):
+//   Hall A: x ∈ [401, 2701]  (A-odd=401, H-even=2701; column pitch = 300 units ≈ 30 ft)
+//   Hall E: x ∈ [200, 2500]  (J-odd=200, R-even=2500; same pitch, separate local origin)
+//   Both:   y ∈ [136, 2436]  (row 52 ≈ 136 at top, row 1 ≈ 2436 at bottom)
+//   Span: 2300 units on each axis (x and y) → uniform scale in both halls.
 //
-// Each column: odd pit center at baseX-10, even at baseX+10 (20 ft aisle gap).
-// Adjacent columns share a 10 ft back-to-back gap (e.g. A-even x=10, B-odd x=20).
-//
-// SVG mapping (1 ft = 1 SVG unit):
-//   Hall A → shift +10, PAD_X=9 keeps A-odd (x=-10) at svgX=9
-//   Hall E → (x-700) + HALL_A_W + HALL_GAP
-//   y      → PAD_TOP + (y - 20)
+// SVG mapping: both halls map to equal-width SVG regions separated by HALL_GAP.
+//   scale = HALL_A_W / 2300
+//   Hall A svgX = PAD_X + (x - 401) * scale
+//   Hall E svgX = PAD_X + HALL_A_W + HALL_GAP + (x - 200) * scale
+//   svgY        = PAD_TOP + (y - 136) * (SVG_H - PAD_TOP - PAD_BOT) / 2300
 //
 // The container uses minWidth so the SVG renders at natural scale on small
 // screens (scrollable) and scales up to fill wide screens automatically.
@@ -24,38 +23,50 @@ import type { RouteStop } from "~/lib/solver";
 const PAD_X = 9;
 const PAD_TOP = 15; // room for hall / aisle labels above pits
 const PAD_BOT = 4;
-const HALL_A_W = 235; // width of Hall A in SVG units (A-odd at 9, H-even at 239)
-const HALL_GAP = 32; // compressed visual gap between halls
+const HALL_A_W = 235; // SVG width for each hall (same for Hall A and Hall E)
+const HALL_GAP = 32;  // compressed visual gap between the two halls
 
 const SVG_W = PAD_X * 2 + HALL_A_W + HALL_GAP + HALL_A_W; // 520
-const SVG_H = PAD_TOP + PAD_BOT + 245; // 263
+const SVG_H = PAD_TOP + PAD_BOT + 245; // 264
 
-const HALL_GAP_X = PAD_X + HALL_A_W; // x where gap begins  (244)
-const HALL_E_X = HALL_GAP_X + HALL_GAP; // x where Hall E starts (276)
+const HALL_GAP_X = PAD_X + HALL_A_W;      // SVG x where gap begins (244)
+const HALL_E_X   = HALL_GAP_X + HALL_GAP; // SVG x where Hall E starts (276)
+
+const NEXUS_X_RANGE = 2300; // both halls span 2300 Nexus units in x
+const NEXUS_A_X_MIN = 401;  // Hall A leftmost pit center (A-odd)
+const NEXUS_E_X_MIN = 200;  // Hall E leftmost pit center (J-odd)
+const NEXUS_Y_MIN   = 136;  // topmost pit center y (row 52)
+const NEXUS_Y_RANGE = 2300; // y span (136 → 2436)
+const SVG_CONTENT_H = SVG_H - PAD_TOP - PAD_BOT; // 245
 
 function toSvgX(coords: PitCoords): number {
   if (coords.letter <= "H") {
-    return PAD_X + coords.x + 10;
+    return PAD_X + (coords.x - NEXUS_A_X_MIN) * HALL_A_W / NEXUS_X_RANGE;
   }
-  return PAD_X + (coords.x - 700) + HALL_A_W + HALL_GAP;
+  return HALL_E_X + (coords.x - NEXUS_E_X_MIN) * HALL_A_W / NEXUS_X_RANGE;
 }
 
 function toSvgY(coords: PitCoords): number {
-  // Flip Y so row 52 (y=260) appears at the top, matching the official pit map orientation.
-  return PAD_TOP + (260 - coords.y);
+  // Nexus y increases downward; row 52 has small y (top), row 1 has large y (bottom).
+  return PAD_TOP + (coords.y - NEXUS_Y_MIN) * SVG_CONTENT_H / NEXUS_Y_RANGE;
 }
 
 const HALL_A_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const HALL_E_LETTERS = ["J", "K", "L", "M", "N", "P", "Q", "R"];
 
+// Column aisle centers in Nexus units: first column center = 100 units from hall edge,
+// then +300 per column (both halls share this geometry).
+const COL_PITCH_SVG = 300 * HALL_A_W / NEXUS_X_RANGE; // ≈ 30.65 SVG units per column
+const COL_FIRST_SVG = 100 * HALL_A_W / NEXUS_X_RANGE; // ≈ 10.2 SVG units from hall edge
+
 const aisleLabels = [
   ...HALL_A_LETTERS.map((letter, i) => ({
     letter,
-    svgX: PAD_X + i * 30 + 10,
+    svgX: PAD_X + COL_FIRST_SVG + i * COL_PITCH_SVG,
   })),
   ...HALL_E_LETTERS.map((letter, i) => ({
     letter,
-    svgX: PAD_X + i * 30 + 10 + HALL_A_W + HALL_GAP,
+    svgX: HALL_E_X + COL_FIRST_SVG + i * COL_PITCH_SVG,
   })),
 ];
 

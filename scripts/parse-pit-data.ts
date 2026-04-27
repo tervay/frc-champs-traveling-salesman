@@ -1,172 +1,66 @@
 import * as fs from "fs";
 import * as path from "path";
 
-// Parse CSV with proper handling of quoted cells containing newlines
-function parseCSV(content: string): string[][] {
-  const rows: string[][] = [];
-  let currentRow: string[] = [];
-  let currentCell = "";
-  let inQuotes = false;
+const DIVISIONS = [
+  "archimedes", "curie", "daly", "galileo",
+  "hopper", "johnson", "milstein", "newton",
+];
 
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-
-    if (char === '"') {
-      if (inQuotes && content[i + 1] === '"') {
-        currentCell += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === "," && !inQuotes) {
-      currentRow.push(currentCell.trim());
-      currentCell = "";
-    } else if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && content[i + 1] === "\n") i++;
-      currentRow.push(currentCell.trim());
-      currentCell = "";
-      if (currentRow.some((c) => c)) rows.push(currentRow);
-      currentRow = [];
-    } else {
-      currentCell += char;
-    }
-  }
-
-  if (currentCell || currentRow.length > 0) {
-    currentRow.push(currentCell.trim());
-    if (currentRow.some((c) => c)) rows.push(currentRow);
-  }
-
-  return rows;
+interface NexusPit {
+  position: { x: number; y: number };
+  size: { x: number; y: number };
+  team?: string;
 }
 
-// Physical dimensions (feet)
-const PIT_SIZE = 10; // each pit is 10'x10'
-const VERTICAL_AISLE_WIDTH = 10; // aisles running along columns (N-S)
-const HORIZONTAL_AISLE_WIDTH = 15; // aisles running between rows (E-W)
-const H_TO_J_GAP = 500; // approximate distance between Hall A (H) and Hall E (J)
-
-// Center-to-center spacing between adjacent aisles:
-// pits back-to-back on either side + the aisle itself
-const AISLE_SPACING = 2 * PIT_SIZE + VERTICAL_AISLE_WIDTH; // 30'
-
-const HALL_A_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const HALL_E_LETTERS = ["J", "K", "L", "M", "N", "P", "Q", "R"];
-
-const HALL_A_END_X = (HALL_A_LETTERS.length - 1) * AISLE_SPACING; // H = 210'
-
-// Column letter to X coordinate (feet from aisle A center)
-const COL_LETTER_TO_X: Record<string, number> = {};
-HALL_A_LETTERS.forEach((letter, i) => {
-  COL_LETTER_TO_X[letter] = i * AISLE_SPACING;
-});
-HALL_E_LETTERS.forEach((letter, i) => {
-  COL_LETTER_TO_X[letter] = HALL_A_END_X + H_TO_J_GAP + i * AISLE_SPACING;
-});
-
-function isPitLabel(cell: string): boolean {
-  return /^[A-HJ-NP-R]\d{2}$/.test(cell);
-}
-
-function isTeamNumber(cell: string): boolean {
-  return /^\d+$/.test(cell);
-}
-
-interface PitCoords {
-  x: number;
-  y: number;
-  letter: string;
-  row: number;
-}
-
+const pitToCoords: Record<string, { x: number; y: number; letter: string; row: number }> = {};
 const teamToPit: Record<number, string> = {};
-const pitToCoords: Record<string, PitCoords> = {};
 
-const CSV_FILE = "2026 CMPTX Pit Map(pit map).csv";
-const csvPath = path.join(process.cwd(), CSV_FILE);
-const content = fs.readFileSync(csvPath, "utf-8");
-const rows = parseCSV(content);
+for (const div of DIVISIONS) {
+  const jsonPath = path.join(process.cwd(), "scripts", "nexus", `${div}.json`);
+  const data = JSON.parse(fs.readFileSync(jsonPath, "utf-8")) as {
+    pits: Record<string, NexusPit>;
+  };
 
-// Section divider rows (e.g. "ARCHIMEDES / DALY / CURIE / GALILEO") mark horizontal aisles.
-// Detected automatically: a row with no pit labels and no team numbers but with known section names.
-const SECTION_NAMES = new Set([
-  "ARCHIMEDES", "DALY", "HOPPER", "MILSTEIN",
-  "CURIE", "GALILEO", "JOHNSON", "NEWTON",
-]);
-function isSectionDivider(row: string[]): boolean {
-  return !row.some(isPitLabel) && row.some((c) => SECTION_NAMES.has(c.trim().toUpperCase()));
-}
+  for (const [nexusLabel, pit] of Object.entries(data.pits)) {
+    const letter = nexusLabel[0];
+    const rowNum = parseInt(nexusLabel.slice(1), 10);
+    // Nexus uses "J2"; canonical label pads to two digits: "J02"
+    const canonLabel = `${letter}${String(rowNum).padStart(2, "0")}`;
 
-let i = 0;
-let yOffset = 0;
-while (i < rows.length) {
-  if (isSectionDivider(rows[i])) {
-    yOffset += HORIZONTAL_AISLE_WIDTH;
-  }
+    // Center of pit (Nexus position is top-left corner, size always 100×100)
+    const cx = pit.position.x + pit.size.x / 2;
+    const cy = pit.position.y + pit.size.y / 2;
 
-  const row = rows[i];
-  const hasLabels = row.some((cell) => isPitLabel(cell));
-
-  if (hasLabels && i + 1 < rows.length) {
-    const labelRow = row;
-    const teamRow = rows[i + 1];
-
-    for (
-      let col = 0;
-      col < Math.max(labelRow.length, teamRow.length);
-      col++
-    ) {
-      const label = (labelRow[col] || "").trim();
-      const teamStr = (teamRow[col] || "").trim();
-
-      if (isPitLabel(label) && isTeamNumber(teamStr)) {
-        const team = parseInt(teamStr, 10);
-        const letter = label[0];
-        const rowNum = parseInt(label.slice(1), 10);
-        const baseX = COL_LETTER_TO_X[letter];
-        // Odd pits are on the west/left side of the aisle, even on east/right.
-        // Each pit is PIT_SIZE deep, so the center is PIT_SIZE/2 past the aisle
-        // edge. The aisle edge is at VERTICAL_AISLE_WIDTH/2 from the aisle center.
-        // Total offset = VERTICAL_AISLE_WIDTH/2 + PIT_SIZE/2.
-        const xOffset = rowNum % 2 !== 0
-          ? -(VERTICAL_AISLE_WIDTH / 2 + PIT_SIZE / 2)
-          : (VERTICAL_AISLE_WIDTH / 2 + PIT_SIZE / 2);
-
-        teamToPit[team] = label;
-        pitToCoords[label] = {
-          x: baseX + xOffset,
-          // Opposite-side pits (e.g. A51/A52) share the same Y position.
-          // ceil(rowNum/2) collapses each facing pair to one Y, then scale to feet.
-          y: Math.ceil(rowNum / 2) * PIT_SIZE + yOffset,
-          letter,
-          row: rowNum,
-        };
-      }
+    // Coords are identical across all divisions for the same hall; first write wins.
+    if (!pitToCoords[canonLabel]) {
+      pitToCoords[canonLabel] = { x: cx, y: cy, letter, row: rowNum };
     }
 
-    i += 2;
-  } else {
-    i++;
+    if (pit.team) {
+      teamToPit[parseInt(pit.team, 10)] = canonLabel;
+    }
   }
 }
 
-// Sort for readability
-const sortedTeams = Object.keys(teamToPit)
-  .map(Number)
-  .sort((a, b) => a - b);
+const sortedTeams = Object.keys(teamToPit).map(Number).sort((a, b) => a - b);
 const sortedPits = Object.keys(pitToCoords).sort();
 
-const output = `// Auto-generated from "${CSV_FILE}"
+const output = `// Auto-generated from Nexus API (scripts/nexus/*.json)
 // Run scripts/parse-pit-data.ts to regenerate
 
 export interface PitCoords {
-  /** X position in feet. Pit centers: Hall A odd=-10..H-even=220 (aisle centers 0,30,…,210), Hall E J-odd=700..R-even=930 */
+  /**
+   * X pit center in Nexus local coordinates.
+   * Hall A: A-odd=401 … H-even=2701 (column pitch 300 units ≈ 30 ft → 10 units/ft).
+   * Hall E: J-odd=200 … R-even=2500 (same scale, separate local origin).
+   * Use globalX() in distance.ts when comparing across halls.
+   */
   x: number;
-  /** Y position in feet. Each pit pair occupies PIT_SIZE feet; horizontal aisles add 15' each */
+  /** Y pit center in Nexus coordinates. Row 52 ≈ 136 (top), row 1 ≈ 2436 (bottom). */
   y: number;
-  /** Aisle letter (A-H, J-R) */
+  /** Aisle letter (A-H for Hall A, J-R for Hall E) */
   letter: string;
-  /** Row number (01-52) */
+  /** Row number (1-52) */
   row: number;
 }
 
