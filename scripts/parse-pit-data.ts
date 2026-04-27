@@ -14,6 +14,7 @@ interface NexusPit {
 
 const pitToCoords: Record<string, { x: number; y: number; letter: string; row: number }> = {};
 const teamToPit: Record<number, string> = {};
+const teamToDivision: Record<number, string> = {};
 
 for (const div of DIVISIONS) {
   const jsonPath = path.join(process.cwd(), "scripts", "nexus", `${div}.json`);
@@ -37,7 +38,9 @@ for (const div of DIVISIONS) {
     }
 
     if (pit.team) {
-      teamToPit[parseInt(pit.team, 10)] = canonLabel;
+      const teamNum = parseInt(pit.team, 10);
+      teamToPit[teamNum] = canonLabel;
+      teamToDivision[teamNum] = div;
     }
   }
 }
@@ -77,6 +80,11 @@ ${sortedPits
     return `  ["${p}", { x: ${c.x}, y: ${c.y}, letter: "${c.letter}", row: ${c.row} }]`;
   })
   .join(",\n")},
+]);
+
+/** Maps team number -> division name (e.g. 254 -> "galileo") */
+export const teamToDivision: Map<number, string> = new Map([
+${sortedTeams.map((t) => `  [${t}, "${teamToDivision[t]}"]`).join(",\n")},
 ]);
 
 /** All valid team numbers as a Set for O(1) lookup */
