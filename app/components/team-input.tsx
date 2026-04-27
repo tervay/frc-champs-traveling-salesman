@@ -147,7 +147,7 @@ export function TeamInput({ onRouteChange }: TeamInputProps) {
       <CardFooter className="gap-2">
         <Button
           onClick={handlePlanRoute}
-          disabled={validTeams.length < 2}
+          disabled={validTeams.length < 1}
           size="sm"
         >
           Plan Route
@@ -160,7 +160,7 @@ export function TeamInput({ onRouteChange }: TeamInputProps) {
         >
           Clear
         </Button>
-        {submitted && validTeams.length >= 2 && (
+        {submitted && validTeams.length >= 1 && (
           <span className="ml-auto text-xs text-muted-foreground">
             {validTeams.length} pit{validTeams.length !== 1 ? "s" : ""}
           </span>

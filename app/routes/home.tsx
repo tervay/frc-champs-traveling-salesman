@@ -74,14 +74,41 @@ export default function Home() {
           {/* Right panel: instructions → replaced by pit map + route list */}
           <div className="flex flex-col gap-4">
             {route ? (
-              <>
-                <div className="order-2 lg:order-1">
+              route.length === 1 ? (
+                <>
                   <PitMap route={route} />
-                </div>
-                <div className="order-1 lg:order-2">
-                  <RouteList route={route} onRouteChange={setRoute} />
-                </div>
-              </>
+                  <Card>
+                    <CardContent className="py-5">
+                      <p className="text-sm font-medium">Pit Location</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Team{" "}
+                        <a
+                          href={`https://www.thebluealliance.com/team/${route[0].team}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono font-medium text-blue-500 underline"
+                        >
+                          {route[0].team}
+                        </a>{" "}
+                        is in pit{" "}
+                        <span className="font-mono font-medium">
+                          {route[0].pit}
+                        </span>
+                        .
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  <div className="order-2 lg:order-1">
+                    <PitMap route={route} />
+                  </div>
+                  <div className="order-1 lg:order-2">
+                    <RouteList route={route} onRouteChange={setRoute} />
+                  </div>
+                </>
+              )
             ) : (
               <Instructions />
             )}
