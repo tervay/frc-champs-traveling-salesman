@@ -113,7 +113,7 @@ export function TeamInput({ onRouteChange }: TeamInputProps) {
 
         <textarea
           className="h-32 w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-          placeholder={"254\n1114\n2056\n3310"}
+          placeholder={"254\n1114\n2056\n1323"}
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
