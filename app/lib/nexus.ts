@@ -29,8 +29,9 @@ interface NexusMatch {
 }
 
 export interface QueueInfo {
-  time: Date;
   label: string;
+  status: string;
+  time: Date | null;
 }
 
 interface NexusEventResponse {
@@ -54,14 +55,14 @@ export async function fetchNextQueueTime(team: number): Promise<QueueInfo | null
     const teamStr = String(team);
 
     const nextMatch = data.matches.find(
-      (m) =>
-        m.status !== "On field" &&
-        (m.redTeams?.includes(teamStr) || m.blueTeams?.includes(teamStr)) &&
-        m.times?.estimatedQueueTime != null
+      (m) => m.redTeams?.includes(teamStr) || m.blueTeams?.includes(teamStr)
     );
 
-    if (!nextMatch?.times?.estimatedQueueTime) return null;
-    return { time: new Date(nextMatch.times.estimatedQueueTime), label: nextMatch.label };
+    if (!nextMatch) return null;
+    const time = nextMatch.times?.estimatedQueueTime
+      ? new Date(nextMatch.times.estimatedQueueTime)
+      : null;
+    return { label: nextMatch.label, status: nextMatch.status, time };
   } catch {
     return null;
   }

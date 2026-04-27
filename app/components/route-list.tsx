@@ -93,11 +93,17 @@ export function RouteList({ route, onRouteChange }: RouteListProps) {
                     {isReturn ? `${stop.pit} — return` : stop.pit}
                     {!isReturn && queueTimes.get(stop.team) != null && (() => {
                       const qi = queueTimes.get(stop.team)!;
-                      const mins = Math.max(1, Math.round((qi.time.getTime() - Date.now()) / 60000));
+                      let text: string;
+                      if (qi.status === "On field" || qi.status === "On deck") {
+                        text = `${qi.status} (${qi.label})`;
+                      } else if (qi.time) {
+                        const mins = Math.max(1, Math.round((qi.time.getTime() - Date.now()) / 60000));
+                        text = `Queueing in ~${mins} min (${qi.label})`;
+                      } else {
+                        return null;
+                      }
                       return (
-                        <span className="ml-1.5 text-xs">
-                          &middot; Queueing in ~{mins} min ({qi.label})
-                        </span>
+                        <span className="ml-1.5 text-xs">&middot; {text}</span>
                       );
                     })()}
                   </span>
