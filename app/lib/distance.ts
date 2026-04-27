@@ -11,7 +11,10 @@ const Y_SCALE = 1;
  */
 const HALL_E_X_OFFSET = 7301;
 
-function globalX(c: PitCoords): number {
+/** Nexus units per physical foot (column pitch: 300 units = 30 ft). */
+export const UNITS_PER_FOOT = 10;
+
+export function globalX(c: PitCoords): number {
   return c.letter <= "H" ? c.x : c.x + HALL_E_X_OFFSET;
 }
 

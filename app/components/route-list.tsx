@@ -10,21 +10,21 @@ import { Button } from "~/components/ui/button";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Separator } from "~/components/ui/separator";
 import { fetchNextQueueTime, type QueueInfo } from "~/lib/nexus";
+import { globalX, UNITS_PER_FOOT } from "~/lib/distance";
 
 interface RouteListProps {
   route: RouteStop[];
   onRouteChange: (route: RouteStop[]) => void;
 }
 
-/** Physical Manhattan distance in feet (coordinates are already in feet). */
 function physicalDistanceFt(route: RouteStop[]): number {
   let total = 0;
   for (let i = 0; i + 1 < route.length; i++) {
     const a = route[i].coords;
     const b = route[i + 1].coords;
-    total += Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    total += Math.abs(globalX(a) - globalX(b)) + Math.abs(a.y - b.y);
   }
-  return Math.round(total);
+  return Math.round(total / UNITS_PER_FOOT);
 }
 
 export function RouteList({ route, onRouteChange }: RouteListProps) {
